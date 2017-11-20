@@ -67,8 +67,8 @@ std::vector<uint8_t> MPL3115A2::readBytes(const uint8_t reg, const unsigned int 
 {
     std::vector<uint8_t> regVector {reg};
     writeBytes(regVector);  // Tell slave where the data we want is
-    std::unique_ptr<uint8_t> cArray(new uint8_t[size]);
-    if (read(m_i2cFile, cArray.get(), 1) != 1)
+    std::unique_ptr<uint8_t[]> cArray(new uint8_t[size]);
+    if (read(m_i2cFile, cArray.get(), size) != size)
     {
         std::ostringstream err;
         err << "Could not read from MPL3115A2" << strerror(errno);
@@ -82,14 +82,14 @@ std::vector<uint8_t> MPL3115A2::readBytes(const uint8_t reg, const unsigned int 
 
 void MPL3115A2::writeBytes(const std::vector<uint8_t> &data) const
 {
-    std::unique_ptr<uint8_t> cArray(new uint8_t[data.size()]);
+    std::unique_ptr<uint8_t[]> cArray(new uint8_t[data.size()]);
     uint8_t *currentElement = cArray.get();
     for (uint8_t x : data)
     {
         *currentElement = x;
         ++currentElement;
     }
-    if (write(m_i2cFile, cArray.get(), data.size()) != 3)
+    if (write(m_i2cFile, cArray.get(), data.size()) != static_cast<int>(data.size()))
     {
         std::ostringstream err;
         err << "Could not write to MPL3115A2" << strerror(errno);
