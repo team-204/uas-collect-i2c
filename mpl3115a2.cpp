@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -44,14 +45,29 @@ MPL3115A2::MPL3115A2(const unsigned int adapterNumber)
         err << "Could not set slave address\n" << strerror(errno);
         throw std::runtime_error(err.str());
     }
+    unsigned long funcs = 0;
+    if (ioctl(m_i2cFile, I2C_FUNCS, &funcs) < 0)
+    {
+        std::ostringstream err;
+        err << "Could not get available functionality from the i2c adapter"
+            << std::endl << strerror(errno);
+        throw std::runtime_error(err.str());
+    }
+    if (!(funcs & I2C_FUNC_I2C))
+    {
+        std::ostringstream err;
+        err << "The adapter does not support a mixed read write transaction"
+            << std::endl << strerror(errno);
+        throw std::runtime_error(err.str());
+    }
 
     // Confirm that the device at this address is indeed the MPL3115A2
-    std::vector<uint8_t> whoIsThis = readBytes(WHO_AM_I, 1);
-    if (whoIsThis[0] != DEVICE_ID)
+    uint8_t whoIsThis = readByte(WHO_AM_I);
+    if (whoIsThis != DEVICE_ID)
     {
         std::ostringstream err;
         err << "WHO_AM_I register contained: " << std::hex
-            << whoIsThis[0] << std::endl
+            << whoIsThis << std::endl
             << "Expected: " << std::hex << DEVICE_ID << std::endl;
         throw std::runtime_error(err.str());
     }
@@ -59,40 +75,63 @@ MPL3115A2::MPL3115A2(const unsigned int adapterNumber)
     {
         std::cout << "MPL3115A2 confirmed to be on I2C bus represented by "
                   << m_i2cFilename << std::endl;
+        close(m_i2cFile);
     }
 }
 
 
-std::vector<uint8_t> MPL3115A2::readBytes(const uint8_t reg, const unsigned int size) const
+uint8_t MPL3115A2::readByte(uint8_t reg) const
 {
-    std::vector<uint8_t> regVector {reg};
-    writeBytes(regVector);  // Tell slave where the data we want is
-    std::unique_ptr<uint8_t[]> cArray(new uint8_t[size]);
-    if (read(m_i2cFile, cArray.get(), size) != size)
+    struct i2c_rdwr_ioctl_data packagedMessages;
+    struct i2c_msg messages[2];
+
+    // This message is responsible for telling the sensor which register we want data from
+    messages[0].addr = MPL3115A2_ADDRESS;
+    messages[0].flags = 0;
+    messages[0].len = sizeof(reg);
+    messages[0].buf = &reg;
+
+    // This message contains the data from the register
+    uint8_t data = 0;
+    messages[1].addr  = MPL3115A2_ADDRESS;
+    messages[1].flags = I2C_M_RD;
+    messages[1].len   = sizeof(data);
+    messages[1].buf   = &data;
+
+    // Ask for the transaction to take place
+    packagedMessages.msgs = messages;
+    packagedMessages.nmsgs = 2;
+    if(ioctl(m_i2cFile, I2C_RDWR, &packagedMessages) < 0)
     {
         std::ostringstream err;
-        err << "Could not read from MPL3115A2" << strerror(errno);
+        err << "Could not perform read" << std::endl << strerror(errno);
         throw std::runtime_error(err.str());
     }
-    std::vector<uint8_t> data;
-    data.assign(cArray.get(), cArray.get() + size);
     return data;
 }
 
 
-void MPL3115A2::writeBytes(const std::vector<uint8_t> &data) const
+void MPL3115A2::writeByte(uint8_t reg, uint8_t data) const
 {
-    std::unique_ptr<uint8_t[]> cArray(new uint8_t[data.size()]);
-    uint8_t *currentElement = cArray.get();
-    for (uint8_t x : data)
-    {
-        *currentElement = x;
-        ++currentElement;
-    }
-    if (write(m_i2cFile, cArray.get(), data.size()) != static_cast<int>(data.size()))
+    struct i2c_rdwr_ioctl_data packagedMessages;
+    struct i2c_msg message;
+
+    // This message contains the register to write to as well as the data to write
+    uint8_t out[2];
+    out[0] = reg;
+    out[1] = data;
+    message.addr = MPL3115A2_ADDRESS;
+    message.flags = 0;
+    message.len = sizeof(out);
+    message.buf = out;
+
+    packagedMessages.msgs = &message;
+    packagedMessages.nmsgs = 1;
+
+    if(ioctl(m_i2cFile, I2C_RDWR, &packagedMessages) < 0)
     {
         std::ostringstream err;
-        err << "Could not write to MPL3115A2" << strerror(errno);
+        err << "Could not perform write" << std::endl << strerror(errno);
         throw std::runtime_error(err.str());
     }
 }
