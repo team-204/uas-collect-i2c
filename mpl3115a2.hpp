@@ -31,7 +31,7 @@ class MPL3115A2
         void configureDataReadyFlag(void) const;
         void configureAltimeterMode(void);
         void configureBarometerMode(void);
-        uint8_t readByte(uint8_t reg) const;
+        std::vector<uint8_t> readBytes(uint8_t reg, unsigned int size) const;
         void writeByte(uint8_t reg, uint8_t data) const;
 
         std::string m_i2cFilename;
