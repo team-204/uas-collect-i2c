@@ -222,12 +222,12 @@ MPL3115A2DATA MPL3115A2::getPressure(void)
         std::this_thread::sleep_for(timespan);
     }
 
+    std::vector<uint8_t> rawData = getData();
     // Upper two bytes + top two bits in LSB represent the 18 bit unsigned integer portion in Pascals
     // Bits 5-4 of LSB represent fractional portion
-    uint8_t MSB = readBytes(PRESSURE_MSB, 1)[0];
-    uint8_t CSB = readBytes(PRESSURE_CSB, 1)[0];
-    uint8_t LSB = readBytes(PRESSURE_LSB, 1)[0];
-    double temperature = getTemperature();
+    uint8_t MSB = rawData[0];
+    uint8_t CSB = rawData[1];
+    uint8_t LSB = rawData[2];
 
     // Get integer portion
     unsigned int intPortion = MSB;
@@ -247,7 +247,7 @@ MPL3115A2DATA MPL3115A2::getPressure(void)
 
     MPL3115A2DATA data;
     data.pressure = pressure;
-    data.temperature = temperature;
+    data.temperature = calculateTemperature(rawData[3], rawData[4]);
     return data;
 }
 
@@ -266,11 +266,11 @@ MPL3115A2DATA MPL3115A2::getAltitude(void)
         std::this_thread::sleep_for(timespan);
     }
 
+    std::vector<uint8_t> rawData = getData();
     // MSB and CSB represent signed int portion in meters, bits 7-4 represent fractional portion
-    uint8_t MSB = readBytes(PRESSURE_MSB, 1)[0];
-    uint8_t CSB = readBytes(PRESSURE_CSB, 1)[0];
-    uint8_t LSB = readBytes(PRESSURE_LSB, 1)[0];
-    double temperature = getTemperature();
+    uint8_t MSB = rawData[0];
+    uint8_t CSB = rawData[1];
+    uint8_t LSB = rawData[2];
 
     // Get signed int portion
     int16_t intPortion = MSB;
@@ -290,16 +290,16 @@ MPL3115A2DATA MPL3115A2::getAltitude(void)
 
     MPL3115A2DATA data;
     data.altitude = altitude;
-    data.temperature = temperature;
+    data.temperature = calculateTemperature(rawData[3], rawData[4]);
     return data;
 }
 
 
-double MPL3115A2::getTemperature(void)
+double MPL3115A2::calculateTemperature(uint8_t MSB, uint8_t LSB)
 {
   // MSB is integer portion, LSB 7-4 is fractional, in Celcius
-  int8_t intPortion = readBytes(TEMPERATURE_MSB, 1)[0];
-  uint8_t fractionalPortion = readBytes(TEMPERATURE_LSB, 1)[0];
+  int8_t intPortion = MSB;
+  uint8_t fractionalPortion = LSB;
 
   // Get fraction
   uint8_t temp = fractionalPortion;
@@ -312,4 +312,11 @@ double MPL3115A2::getTemperature(void)
 
   double temperature = intPortion + fraction;
   return temperature;
+}
+
+
+std::vector<uint8_t> MPL3115A2::getData(void) const
+{
+    // Get all the data in one transaction
+    return readBytes(PRESSURE_MSB, 5);
 }

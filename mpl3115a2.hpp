@@ -26,13 +26,15 @@ class MPL3115A2
         MPL3115A2DATA getAltitude(void);
 
     private:
-        double getTemperature(void);
+        double calculateTemperature(uint8_t MSB, uint8_t LSB);
         uint8_t enterStandbyMode(void) const;
         void configureDataReadyFlag(void) const;
         void configureAltimeterMode(void);
         void configureBarometerMode(void);
         std::vector<uint8_t> readBytes(uint8_t reg, unsigned int size) const;
+        std::vector<uint8_t> getData(void) const;
         void writeByte(uint8_t reg, uint8_t data) const;
+
 
         std::string m_i2cFilename;
         int m_i2cFile;
