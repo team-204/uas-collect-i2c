@@ -81,7 +81,7 @@ MPL3115A2::MPL3115A2(const unsigned int adapterNumber)
     }
 
     // Confirm that the device at this address is indeed the MPL3115A2
-    uint8_t whoIsThis = readByte(WHO_AM_I);
+    uint8_t whoIsThis = readBytes(WHO_AM_I, 1)[0];
     if (whoIsThis != DEVICE_ID)
     {
         std::ostringstream err;
@@ -105,7 +105,7 @@ uint8_t MPL3115A2::enterStandbyMode(void) const
 {
     // Enter standby mode to allow register writing
     // Return the register data to allow it to be restored to previous state
-    uint8_t controlRegisterData = readByte(CTRL_REG1);
+    uint8_t controlRegisterData = readBytes(CTRL_REG1, 1)[0];
     writeByte(CTRL_REG1, controlRegisterData & ~STANDBY_BAR_MASK);  // Clear standby bar bit
     return controlRegisterData;
 }
@@ -149,7 +149,7 @@ void MPL3115A2::configureDataReadyFlag(void) const
 }
 
 
-uint8_t MPL3115A2::readByte(uint8_t reg) const
+std::vector<uint8_t> MPL3115A2::readBytes(uint8_t reg, unsigned int size) const
 {
     struct i2c_rdwr_ioctl_data packagedMessages;
     struct i2c_msg messages[2];
@@ -161,11 +161,11 @@ uint8_t MPL3115A2::readByte(uint8_t reg) const
     messages[0].buf = &reg;
 
     // This message contains the data from the register
-    uint8_t data = 0;
+    std::unique_ptr<uint8_t[]> data(new uint8_t[size]);
     messages[1].addr  = MPL3115A2_ADDRESS;
     messages[1].flags = I2C_M_RD;
-    messages[1].len   = sizeof(data);
-    messages[1].buf   = &data;
+    messages[1].len   = size;
+    messages[1].buf   = data.get();
 
     // Ask for the transaction to take place
     packagedMessages.msgs = messages;
@@ -176,7 +176,7 @@ uint8_t MPL3115A2::readByte(uint8_t reg) const
         err << "Could not perform read" << std::endl << strerror(errno);
         throw std::runtime_error(err.str());
     }
-    return data;
+    return std::vector<uint8_t>(data.get(), data.get() + size);
 }
 
 
@@ -214,20 +214,20 @@ MPL3115A2DATA MPL3115A2::getPressure(void)
     }
 
     // Poll until there is data available
-    uint8_t status = readByte(STATUS);
+    uint8_t status = readBytes(STATUS, 1)[0];
     while (!(status & STATUS_PTDR_MASK))
     {
-        status = readByte(STATUS);
+        status = readBytes(STATUS, 1)[0];
         std::chrono::milliseconds timespan(10);
         std::this_thread::sleep_for(timespan);
     }
 
+    std::vector<uint8_t> rawData = getData();
     // Upper two bytes + top two bits in LSB represent the 18 bit unsigned integer portion in Pascals
     // Bits 5-4 of LSB represent fractional portion
-    uint8_t MSB = readByte(PRESSURE_MSB);
-    uint8_t CSB = readByte(PRESSURE_CSB);
-    uint8_t LSB = readByte(PRESSURE_LSB);
-    double temperature = getTemperature();
+    uint8_t MSB = rawData[0];
+    uint8_t CSB = rawData[1];
+    uint8_t LSB = rawData[2];
 
     // Get integer portion
     unsigned int intPortion = MSB;
@@ -247,7 +247,7 @@ MPL3115A2DATA MPL3115A2::getPressure(void)
 
     MPL3115A2DATA data;
     data.pressure = pressure;
-    data.temperature = temperature;
+    data.temperature = calculateTemperature(rawData[3], rawData[4]);
     return data;
 }
 
@@ -258,19 +258,19 @@ MPL3115A2DATA MPL3115A2::getAltitude(void)
     {
         configureAltimeterMode();
     }
-    uint8_t status = readByte(STATUS);
+    uint8_t status = readBytes(STATUS, 1)[0];
     while (!(status & STATUS_PTDR_MASK))
     {
-        status = readByte(STATUS);
+        status = readBytes(STATUS, 1)[0];
         std::chrono::milliseconds timespan(10);
         std::this_thread::sleep_for(timespan);
     }
 
+    std::vector<uint8_t> rawData = getData();
     // MSB and CSB represent signed int portion in meters, bits 7-4 represent fractional portion
-    uint8_t MSB = readByte(PRESSURE_MSB);
-    uint8_t CSB = readByte(PRESSURE_CSB);
-    uint8_t LSB = readByte(PRESSURE_LSB);
-    double temperature = getTemperature();
+    uint8_t MSB = rawData[0];
+    uint8_t CSB = rawData[1];
+    uint8_t LSB = rawData[2];
 
     // Get signed int portion
     int16_t intPortion = MSB;
@@ -290,16 +290,16 @@ MPL3115A2DATA MPL3115A2::getAltitude(void)
 
     MPL3115A2DATA data;
     data.altitude = altitude;
-    data.temperature = temperature;
+    data.temperature = calculateTemperature(rawData[3], rawData[4]);
     return data;
 }
 
 
-double MPL3115A2::getTemperature(void)
+double MPL3115A2::calculateTemperature(uint8_t MSB, uint8_t LSB)
 {
   // MSB is integer portion, LSB 7-4 is fractional, in Celcius
-  int8_t intPortion = readByte(TEMPERATURE_MSB);
-  uint8_t fractionalPortion = readByte(TEMPERATURE_LSB);
+  int8_t intPortion = MSB;
+  uint8_t fractionalPortion = LSB;
 
   // Get fraction
   uint8_t temp = fractionalPortion;
@@ -312,4 +312,11 @@ double MPL3115A2::getTemperature(void)
 
   double temperature = intPortion + fraction;
   return temperature;
+}
+
+
+std::vector<uint8_t> MPL3115A2::getData(void) const
+{
+    // Get all the data in one transaction
+    return readBytes(PRESSURE_MSB, 5);
 }
