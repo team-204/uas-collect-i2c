@@ -1,11 +1,15 @@
 #ifndef MPL3115A2_HPP
 #define MPL3115A2_HPP
 
+#include <memory>
 #include <stdint.h>
 #include <string>
 #include <vector>
 
+#include "i2c-abstraction.hpp"
 
+
+// This struct represents the data available from the device.
 struct MPL3115A2DATA
 {
     public:
@@ -15,13 +19,14 @@ struct MPL3115A2DATA
 };
 
 
+// This class represents the MPL3115A2.
+// Using getPressure and getAltitude will return a data struct with
+// temperature and pressure/altitude data, depending on the function used.
 class MPL3115A2
 {
     public:
-
         // Attempts to open the i2c connection at the adapterNumber
         MPL3115A2(const unsigned int adapterNumber);
-
         MPL3115A2DATA getPressure(void);
         MPL3115A2DATA getAltitude(void);
 
@@ -31,13 +36,8 @@ class MPL3115A2
         void configureDataReadyFlag(void) const;
         void configureAltimeterMode(void);
         void configureBarometerMode(void);
-        std::vector<uint8_t> readBytes(uint8_t reg, unsigned int size) const;
         std::vector<uint8_t> getData(void) const;
-        void writeByte(uint8_t reg, uint8_t data) const;
-
-
-        std::string m_i2cFilename;
-        int m_i2cFile;
+        std::unique_ptr<I2cAbstraction> m_connection;
         bool isAltimeterMode;
         bool isBarometerMode;
 };
