@@ -4,8 +4,8 @@ GDB=-g -O0
 CXXFLAGS=-I. -Wall -Wextra -std=c++11 $(GDB) $(ADDRESSSANITIZER)
 LIBS=
 
-DEPS = mpl3115a2.hpp
-I2COBJS = main.o mpl3115a2.o
+DEPS = mpl3115a2.hpp i2c-abstraction.hpp
+I2COBJS = main.o mpl3115a2.o i2c-abstraction.o
 OBJS = $(I2COBJS)
 
 all: i2c
