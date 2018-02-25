@@ -7,11 +7,15 @@ LIBS=
 BUILDDIR = build/
 SRCDIR = src/
 DEPS = $(addprefix $(SRCDIR),mpl3115a2.hpp i2c-abstraction.hpp lsm9ds1.hpp)
+DATA-SERVEROBJS = data-server.o mpl3115a2.o i2c-abstraction.o
 MPL3115A2-TESTOBJS = mpl3115a2-test.o mpl3115a2.o i2c-abstraction.o
 LSM9DS1-TESTOBJS = lsm9ds1-test.o lsm9ds1.o i2c-abstraction.o
 OBJS = $(addprefix $(BUILDDIR),$(MPL3115A2-TESTOBJS))
 
-all: mpl3115a2-test lsm9ds1-test
+all: mpl3115a2-test lsm9ds1-test data-server
+
+data-server: $(addprefix $(BUILDDIR),$(DATA-SERVEROBJS))
+		$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS) -lzmq
 
 lsm9ds1-test: $(addprefix $(BUILDDIR),$(LSM9DS1-TESTOBJS))
 		$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
