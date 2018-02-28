@@ -31,3 +31,6 @@
 *.out
 *.app
 i2c
+mpl3115a2-test
+lsm9ds1-test
+data-server
