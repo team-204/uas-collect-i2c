@@ -10,6 +10,9 @@
 
 
 // This struct represents the data available from the device.
+// Note that the get functions in MPL3115A2 only fill two fields,
+// the device can only read pressure and temperature, or altitude and
+// temperature.
 struct MPL3115A2DATA
 {
     public:
@@ -20,7 +23,7 @@ struct MPL3115A2DATA
 
 
 // This class represents the MPL3115A2.
-// Using getPressure and getAltitude will return a data struct with
+// Using getPressure and getPressure/getAltitude will return a data struct with
 // temperature and pressure/altitude data, depending on the function used.
 class MPL3115A2
 {

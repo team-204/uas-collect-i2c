@@ -1,3 +1,5 @@
+// This either prints the data read from the MPL3115A2 to stdout or to
+// a file (indicated by the command line arguments provided)
 #include <chrono>
 #include <fstream>
 #include <iostream>

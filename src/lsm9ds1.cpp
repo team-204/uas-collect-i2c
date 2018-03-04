@@ -44,7 +44,7 @@ LSM9DS1::LSM9DS1(const unsigned int adapterNumber) :
     m_magConn(new I2cAbstraction(adapterNumber, LSM9DS1_M_ADDRESS)),
     m_xlgConn(new I2cAbstraction(adapterNumber, LSM9DS1_XLG_ADDRESS))
 {
-    // Confirm that the device at this address is indeed the MPL3115A2
+    // Confirm that the device at this address is indeed the LSM9DS1
     uint8_t whoIsThis = m_magConn->readBytes(WHO_AM_I_M, 1)[0];
     if (whoIsThis != DEVICE_ID_M)
     {

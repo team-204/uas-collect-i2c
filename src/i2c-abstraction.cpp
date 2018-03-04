@@ -19,6 +19,7 @@
 
 I2cAbstraction::I2cAbstraction(const unsigned int adapterNumber, const uint8_t deviceAddress)
 {
+    // Basically setup an dev file to be used for i2c and handle errors
     m_deviceAddress = deviceAddress;
     std::ostringstream oss;
     oss << "/dev/i2c-" << adapterNumber;
@@ -99,9 +100,10 @@ void I2cAbstraction::writeByte(uint8_t reg, uint8_t data) const
     message.len = sizeof(out);
     message.buf = out;
 
+
+    // Ask for the transaction to take place
     packagedMessages.msgs = &message;
     packagedMessages.nmsgs = 1;
-
     if(ioctl(m_i2cFile, I2C_RDWR, &packagedMessages) < 0)
     {
         std::ostringstream err;
