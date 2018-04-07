@@ -1,0 +1,13 @@
+[Unit]
+Description=I2C data server service file
+After=network.target setuart.service
+
+[Service]
+User=root
+Restart=no
+Type=simple
+WorkingDirectory=/home/debian/git/uas-collect-i2c
+ExecStart=/home/debian/git/uas-collect-i2c/data-server 2
+
+[Install]
+WantedBy=multi-user.target
