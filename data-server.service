@@ -7,7 +7,7 @@ User=root
 Restart=no
 Type=simple
 WorkingDirectory=/home/debian/git/uas-collect-i2c
-ExecStart=/home/debian/git/uas-collect-i2c/data-server 2
+ExecStart=/bin/sh -c '/home/debian/git/uas-collect-i2c/data-server 2 2>&1 | tee -a /home/debian/data-server.txt'
 
 [Install]
 WantedBy=multi-user.target
